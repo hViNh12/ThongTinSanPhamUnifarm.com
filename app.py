@@ -8,8 +8,6 @@ app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
 # ================= CẤU HÌNH DATABASE =================
-# Khi deploy Render / Railway / Heroku → dùng DATABASE_URL do server cấp
-# Khi chạy local → fallback sang SQLite (data.db)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///data.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
@@ -20,7 +18,10 @@ class ProductInfo(db.Model):
     date = db.Column(db.String(50), nullable=True)
     image = db.Column(db.String(200), nullable=True)
 
-# Tạo bảng và dữ liệu mặc định
+class Lot(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String(50), nullable=False)
+
 with app.app_context():
     db.create_all()
     if not ProductInfo.query.first():
@@ -61,7 +62,7 @@ def index():
 def admin():
     return render_template("admin.html")
 
-# Cập nhật ngày
+# Cập nhật ngày (thủ công qua form)
 @app.route("/update-date", methods=["POST"])
 def update_date():
     password = request.form.get("password", "")
@@ -110,21 +111,39 @@ def upload_image():
     flash("Đổi ảnh sản phẩm thành công!")
     return redirect(url_for("index"))
 
-# Trang QR
+# Trang QR (form nhập ngày để sinh QR)
 @app.route("/qr")
 def qr_page():
     return render_template("qr.html")
 
-# Sinh QR code
+# Sinh QR code cho ngày nhập lô và lưu DB
 @app.route("/generate-qr", methods=["POST"])
 def generate_qr():
-    url = "https://thongtinsanphamUNI-com.onrender.com/"
+    new_date = request.form.get("new_date", "")
+
+    if not new_date:
+        flash("Chưa nhập ngày lô hàng!")
+        return redirect(url_for("qr_page"))
+
+    # Lưu ngày lô vào DB
+    lot = Lot(date=new_date)
+    db.session.add(lot)
+    db.session.commit()
+
+    # Sinh URL QR
+    url = f"https://thongtinsanphamunifarm-com.onrender.com/lot/{lot.id}"
     qr_img = qrcode.make(url)
 
     img_io = BytesIO()
     qr_img.save(img_io, "PNG")
     img_io.seek(0)
     return send_file(img_io, mimetype="image/png", as_attachment=True, download_name="qr.png")
+
+# Hiển thị thông tin lô qua link QR
+@app.route("/lot/<int:lot_id>")
+def show_lot(lot_id):
+    lot = Lot.query.get_or_404(lot_id)
+    return f"Ngày nhập lô: {lot.date}"
 
 # ================= RUN =================
 if __name__ == "__main__":
