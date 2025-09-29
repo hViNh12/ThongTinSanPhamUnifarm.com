@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Tạo mã QR</title>
+</head>
+<body>
+    <h1>Tạo mã QR cho lô sản phẩm</h1>
+    <form action="{{ url_for('generate_qr') }}" method="post">
+        <label>Ngày nhập lô:</label>
+        <input type="text" name="new_date" placeholder="dd/mm/yyyy" required>
+        <button type="submit">Sinh mã QR</button>
+    </form>
+
+    <p><a href="{{ url_for('index') }}">← Về trang chính</a></p>
+</body>
+</html>
